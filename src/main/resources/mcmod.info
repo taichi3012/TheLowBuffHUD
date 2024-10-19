@@ -2,7 +2,7 @@
 {
   "modid": "thelowbuffhud",
   "name": "TheLow Buff HUD",
-  "description": "Example placeholder mod.",
+  "description": "%`TheLowのバフの内容を表示するMod`%",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "",

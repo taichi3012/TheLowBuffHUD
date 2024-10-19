@@ -1,0 +1,5 @@
+thelowbuffhud.config.positioncategory=Position
+thelowbuffhud.config.referencepointcategory=Reference point position
+thelowbuffhud.config.offsetcategory=Offset
+thelowbuffhud.config.verticaldirection=Vertical direction
+thelowbuffhud.config.horizontaldirection=Horizontal direction

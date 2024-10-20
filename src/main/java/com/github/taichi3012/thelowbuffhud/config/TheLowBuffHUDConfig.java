@@ -12,6 +12,7 @@ public class TheLowBuffHUDConfig {
   public static final String CATEGORY_POSITION = Configuration.CATEGORY_GENERAL + ".position";
   public static final String CATEGORY_REFERENCE_POINT = Configuration.CATEGORY_GENERAL + ".reference_point";
   public static final String CATEGORY_OFFSET = Configuration.CATEGORY_GENERAL + ".offset";
+  public static final String CATEGORY_STYLE = Configuration.CATEGORY_GENERAL + ".style";
 
   private static Configuration config;
 
@@ -19,7 +20,8 @@ public class TheLowBuffHUDConfig {
     config = new Configuration(configFile)
       .setCategoryLanguageKey(CATEGORY_POSITION, "thelowbuffhud.config.positioncategory")
       .setCategoryLanguageKey(CATEGORY_REFERENCE_POINT, "thelowbuffhud.config.referencepointcategory")
-      .setCategoryLanguageKey(CATEGORY_OFFSET, "thelowbuffhud.config.offsetcategory");
+      .setCategoryLanguageKey(CATEGORY_OFFSET, "thelowbuffhud.config.offsetcategory")
+      .setCategoryLanguageKey(CATEGORY_STYLE, "thelowbuffhud.config.style");
 
     sync();
   }
@@ -75,6 +77,14 @@ public class TheLowBuffHUDConfig {
         1024,
         "",
         "thelowbuffhud.config.horizontaldirection"
+      ),
+      config.getString(
+        "style",
+        CATEGORY_STYLE,
+        "SEPARATE_RL",
+        "",
+        new String[]{ "LEFT", "MIDDLE", "RIGHT", "SEPARATE_LL", "SEPARATE_LR", "SEPARATE_RL", "SEPARATE_RR" },
+        "thelowbuffhud.config.style"
       )
     );
 

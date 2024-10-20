@@ -2,6 +2,7 @@ package com.github.taichi3012.thelowbuffhud.gui;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.math.DoubleMath;
 import net.minecraft.client.Minecraft;
@@ -21,6 +22,8 @@ public class GuiTheLowBuffStatus extends Gui {
 
   private final Minecraft mc;
 
+  private static final int VERTICAL_MARGIN = 3;
+
   public GuiTheLowBuffStatus(Minecraft mc) {
     this.mc = mc;
   }
@@ -30,69 +33,121 @@ public class GuiTheLowBuffStatus extends Gui {
     if (cache.empty)
       return;
 
-    List<String> lines = new ArrayList<>();
-    cache.effects.forEach((name, v) -> {
-      long duration = v.getDuration();
-      if (duration >= 0)
-        lines.add(name + " " + formatBuffLevel(name, v.level) + " " + formatDuration(duration));
-    });
+    ConfigData config = ConfigData.getInstance();
+    if (config.style.startsWith("SEPARATE_"))
+      renderSeparateStyle(config, cache.effects);
+    else
+      renderNotSeparateStyle(config, cache.effects);
+  }
+
+  private void renderSeparateStyle(ConfigData config, Map<String, BuffCache.Value> effects) {
+    FontRenderer fontRenderer = this.mc.fontRendererObj;
+    int titlePanelWidth = 0;
+    int durationPanelWidth = 0;
+    List<Line> lines = new ArrayList<>();
+    for (Map.Entry<String, BuffCache.Value> entry : effects.entrySet()) {
+      BuffCache.Value value = entry.getValue();
+      long duration = value.getDuration();
+      if (duration < 0)
+        continue;
+
+      String name = entry.getKey();
+      Line line = new Line(name + formatBuffLevel(name, value.level), formatDuration(duration), fontRenderer);
+      lines.add(line);
+      titlePanelWidth = Math.max(line.titleWidth, titlePanelWidth);
+      durationPanelWidth = Math.max(line.durationWidth, durationPanelWidth);
+    }
+
+    if (lines.isEmpty())
+      return;
+
+    final int spaceWidth = fontRenderer.getStringWidth("  ");
+    int width = titlePanelWidth + spaceWidth + durationPanelWidth;
+    GlStateManager.pushMatrix();
+    translate(config, getHeight(lines.size(), fontRenderer.FONT_HEIGHT), width);
+
+    String[] side = config.style.substring(9, 11).split("");
+    boolean isTitleLeftSide = side[0].equals("L");
+    boolean isDurationLeftSide = side[1].equals("L");
+
+    for (Line l : lines) {
+      if (isTitleLeftSide)
+        fontRenderer.drawStringWithShadow(l.titleText, 0f, 0f, 0xffffffff);
+      else
+        fontRenderer.drawStringWithShadow(l.titleText, titlePanelWidth - l.titleWidth, 0f, 0xffffffff);
+
+      if (isDurationLeftSide)
+        fontRenderer.drawStringWithShadow(l.durationText, titlePanelWidth + spaceWidth, 0f, 0xffffffff);
+      else
+        fontRenderer.drawStringWithShadow(l.durationText, width - l.durationWidth, 0f, 0xffffffff);
+
+      translateNextLine(fontRenderer.FONT_HEIGHT);
+    }
+
+    GlStateManager.popMatrix();
+  }
+
+  private void renderNotSeparateStyle(ConfigData config, Map<String, BuffCache.Value> effects) {
+    FontRenderer fontRenderer = this.mc.fontRendererObj;
+    final int spaceWidth = fontRenderer.getStringWidth("  ");
+    int width = 0;
+    List<Line> lines = new ArrayList<>();
+    for (Map.Entry<String, BuffCache.Value> entry : effects.entrySet()) {
+      BuffCache.Value value = entry.getValue();
+      long duration = value.getDuration();
+      if (duration < 0)
+        continue;
+
+      String name = entry.getKey();
+      Line line = new Line(name + formatBuffLevel(name, value.level), formatDuration(duration), fontRenderer);
+      lines.add(line);
+      width = Math.max(line.titleWidth + spaceWidth + line.durationWidth, width);
+    }
 
     if (lines.isEmpty())
       return;
 
     GlStateManager.pushMatrix();
+    translate(config, getHeight(lines.size(), fontRenderer.FONT_HEIGHT), width);
 
-    ConfigData config = ConfigData.getInstance();
-    ScaledResolution resolution = new ScaledResolution(this.mc);
-    FontRenderer fontRenderer = this.mc.fontRendererObj;
-
-    switch (config.verticalPosition) {
+    switch (config.style) {
+      case "LEFT":
+        for (Line l : lines) {
+          GlStateManager.pushMatrix();
+          GlStateManager.translate(fontRenderer.drawStringWithShadow(l.titleText, 0f, 0f, 0xffffffff) + spaceWidth, 0f, 0f);
+          fontRenderer.drawStringWithShadow(l.durationText, 0f, 0f, 0xffffffff);
+          GlStateManager.popMatrix();
+          translateNextLine(fontRenderer.FONT_HEIGHT);
+        }
+        break;
       case "MIDDLE":
-        GlStateManager.translate(0f, resolution.getScaledHeight() / 2f, 0f);
+        for (Line l : lines) {
+          int sideMargin = (width - (l.titleWidth + spaceWidth + l.durationWidth)) / 2;
+          GlStateManager.pushMatrix();
+          GlStateManager.translate(sideMargin, 0f, 0f);
+          GlStateManager.translate(fontRenderer.drawStringWithShadow(l.titleText, 0f, 0f, 0xffffffff) + spaceWidth, 0f, 0f);
+          fontRenderer.drawStringWithShadow(l.durationText, 0f, 0f, 0xffffffff);
+          GlStateManager.popMatrix();
+          translateNextLine(fontRenderer.FONT_HEIGHT);
+        }
         break;
-      case "BOTTOM":
-        GlStateManager.translate(0f, resolution.getScaledHeight(), 0f);
-        break;
-    }
-
-    switch (config.horizontalPosition) {
-      case "MIDDLE":
-        GlStateManager.translate(resolution.getScaledWidth() / 2f, 0f, 0f);
-        break;
-      case "RIGHT":
-        GlStateManager.translate(resolution.getScaledWidth(), 0f, 0f);
-        break;
-    }
-
-    int padding = 3;
-    int width = lines.stream().mapToInt(fontRenderer::getStringWidth).max().orElse(0);
-    int height = lines.size() * (fontRenderer.FONT_HEIGHT + padding) - padding;
-
-    switch (config.verticalReferencePoint) {
-      case "MIDDLE":
-        GlStateManager.translate(0f, -height / 2f, 0f);
-        break;
-      case "BOTTOM":
-        GlStateManager.translate(0f, -height, 0f);
+      case"RIGHT":
+        for (Line l : lines) {
+          GlStateManager.pushMatrix();
+          GlStateManager.translate(width - (l.titleWidth + spaceWidth + l.durationWidth), 0f, 0f);
+          GlStateManager.translate(fontRenderer.drawStringWithShadow(l.titleText, 0f, 0f, 0xffffffff) + spaceWidth, 0f, 0f);
+          fontRenderer.drawStringWithShadow(l.durationText, 0f, 0f, 0xffffffff);
+          GlStateManager.popMatrix();
+          translateNextLine(fontRenderer.FONT_HEIGHT);
+        }
         break;
     }
 
-    switch (config.horizontalReferencePoint) {
-      case "MIDDLE":
-        GlStateManager.translate(-width / 2f, 0f, 0f);
-        break;
-      case "RIGHT":
-        GlStateManager.translate(-width, 0f, 0f);
-        break;
-    }
-
-    GlStateManager.translate(config.horizontalOffset, config.verticalOffset, 0f);
-
-    for (String l : lines) {
-      fontRenderer.drawStringWithShadow(l, 0f, 0f, 0xffffffff);
-      GlStateManager.translate(0f, fontRenderer.FONT_HEIGHT + padding, 0f);
-    }
     GlStateManager.popMatrix();
+  }
+
+  private static int getHeight(int line, int fontHeight) {
+    return line * (fontHeight + VERTICAL_MARGIN) - VERTICAL_MARGIN;
   }
 
   private static String formatBuffLevel(String name, double level) {
@@ -115,6 +170,66 @@ public class GuiTheLowBuffStatus extends Gui {
       DURATION_FORMAT[3];
 
     return DurationFormatUtils.formatDuration(duration, format);
+  }
+
+  private void translate(ConfigData config, int height, int width) {
+    ScaledResolution resolution = new ScaledResolution(this.mc);
+    switch (config.verticalPosition) {
+      case "MIDDLE":
+        GlStateManager.translate(0f, resolution.getScaledHeight() / 2f, 0f);
+        break;
+      case "BOTTOM":
+        GlStateManager.translate(0f, resolution.getScaledHeight(), 0f);
+        break;
+    }
+
+    switch (config.horizontalPosition) {
+      case "MIDDLE":
+        GlStateManager.translate(resolution.getScaledWidth() / 2f, 0f, 0f);
+        break;
+      case "RIGHT":
+        GlStateManager.translate(resolution.getScaledWidth(), 0f, 0f);
+        break;
+    }
+
+    switch (config.verticalReferencePoint) {
+      case "MIDDLE":
+        GlStateManager.translate(0f, -height / 2f, 0f);
+        break;
+      case "BOTTOM":
+        GlStateManager.translate(0f, -height, 0f);
+        break;
+    }
+
+    switch (config.horizontalReferencePoint) {
+      case "MIDDLE":
+        GlStateManager.translate(-width / 2f, 0f, 0f);
+        break;
+      case "RIGHT":
+        GlStateManager.translate(-width, 0f, 0f);
+        break;
+    }
+
+    GlStateManager.translate(config.horizontalOffset, config.verticalOffset, 0f);
+  }
+
+  private static void translateNextLine(int fontHeight) {
+    GlStateManager.translate(0f, fontHeight + VERTICAL_MARGIN, 0f);
+  }
+
+  private static class Line {
+    private final String titleText;
+    private final String durationText;
+    private final int titleWidth;
+    private final int durationWidth;
+
+
+    private Line(String titleText, String durationText, FontRenderer fontRenderer) {
+      this.titleText = titleText;
+      this.durationText = durationText;
+      this.titleWidth = fontRenderer.getStringWidth(titleText);
+      this.durationWidth = fontRenderer.getStringWidth(durationText);
+    }
   }
 
 }

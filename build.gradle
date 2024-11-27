@@ -39,9 +39,8 @@ processResources {
 
     //'%`'と'`%'で囲まれた部分をUnicodeエスケープシーケンスに変換(日本語の文字化け対策)
     filter { String line ->
-      line.replaceAll(/%`[^(`%)]*`%/) { String[] match ->
-        match[0].substring(2)
-          .replaceAll('`%', '')
+      line.replaceAll(/%`.*?`%/) { String[] match ->
+        match[0].replaceAll(/^%`|`%$/, '')
           .toCharArray()
           .collect { '\\u' + Integer.toHexString((int) it.charValue()).padLeft(4, '0') }
           .join()
@@ -52,4 +51,8 @@ processResources {
   from(sourceSets.main.resources.srcDirs) {
     exclude 'mcmod.info'
   }
+}
+
+runClient {
+  outputs.upToDateWhen { false }
 }
